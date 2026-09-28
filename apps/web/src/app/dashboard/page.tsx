@@ -6,7 +6,9 @@ import {
   getEnergyHistory, 
   getDashboardAggregates, 
   getTrades, 
-  getPricingRecommendation 
+  getPricingRecommendation,
+  getMarketplace,
+  getEnergyOffers
 } from '../../lib/api';
 
 // Dashboard-specific isolated components
@@ -21,6 +23,7 @@ import RecentTrades from '../../components/dashboard/RecentTrades';
 import TradingSummary from '../../components/dashboard/TradingSummary';
 import SmartMeter from '../../components/dashboard/SmartMeter';
 import CreateOfferModal from '../../components/CreateOfferModal';
+import BuyEnergyModal from '../../components/BuyEnergyModal';
 
 export default function DashboardPage() {
   const { currentUser, hardwareStatus } = useApp();
@@ -29,7 +32,7 @@ export default function DashboardPage() {
     energyGenerated: 5.70,
     energyAvailable: 2.30,
     energySold: 12.40,
-    energyPurchased: 0.50,
+    energyPurchased: 1.20,
     consumerDemandKwh: 4.20,
     producerStatus: 'ACTIVE_EXPORT',
   });
@@ -46,16 +49,21 @@ export default function DashboardPage() {
 
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [recentTrades, setRecentTrades] = useState<any[]>([]);
+  const [availableOffers, setAvailableOffers] = useState<any[]>([]);
+  const [selectedOffer, setSelectedOffer] = useState<any>(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [loadingPricing, setLoadingPricing] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [agg, hist, trd, pricing] = await Promise.all([
+      const [agg, hist, trd, pricing, mkt, allOffers] = await Promise.all([
         getDashboardAggregates(currentUser.id).catch(() => null),
         getEnergyHistory('ESP32-HOUSE-A', 30).catch(() => ({ history: [] })),
         getTrades().catch(() => ({ trades: [] })),
         getPricingRecommendation().catch(() => null),
+        getMarketplace().catch(() => ({ offers: [] })),
+        getEnergyOffers().catch(() => ({ offers: [] })),
       ]);
 
       if (agg) {
@@ -66,12 +74,18 @@ export default function DashboardPage() {
           energyGenerated: agg.energyGenerated || 5.70,
           energyAvailable: agg.energyAvailable || 2.30,
           energySold: agg.energySold || 12.40,
+          energyPurchased: agg.energyPurchased || 1.20,
+          consumerDemandKwh: agg.consumerDemandKwh || 4.20,
         }));
       }
 
       if (pricing) {
         setPricingRec(pricing);
       }
+
+      const offerList = allOffers?.offers?.length > 0 ? allOffers.offers : (mkt?.offers || []);
+      const eligible = offerList.filter((o: any) => (o.remainingEnergy > 0) && (o.userId !== currentUser.id));
+      setAvailableOffers(eligible.length > 0 ? eligible : offerList);
 
       if (hist?.history && hist.history.length > 0) {
         setHistoryData(
@@ -112,6 +126,22 @@ export default function DashboardPage() {
     setLoadingPricing(false);
   };
 
+  const handleOpenBuyModal = () => {
+    const offerToUse = (availableOffers && availableOffers.length > 0)
+      ? availableOffers[0]
+      : {
+          id: undefined,
+          userId: 'user-house-a',
+          producerName: 'House A (Solar Producer)',
+          pricePerKwh: pricingRec.recommendedPrice || 8.42,
+          remainingEnergy: 2.30,
+          totalEnergy: 5.0,
+          status: 'AVAILABLE',
+        };
+    setSelectedOffer(offerToUse);
+    setIsBuyModalOpen(true);
+  };
+
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       
@@ -121,14 +151,19 @@ export default function DashboardPage() {
       {/* 2. DASHBOARD HERO SECTION */}
       <DashboardHero
         onOpenOfferModal={() => setIsOfferModalOpen(true)}
+        onOpenBuyModal={handleOpenBuyModal}
       />
 
       {/* 3. PRIMARY 4-CARD ENERGY KPI GRID */}
       <DashboardKpiGrid
+        role={currentUser.role}
         energyGenerated={aggregates.energyGenerated}
         energyAvailable={aggregates.energyAvailable}
         currentPrice={pricingRec.recommendedPrice}
         energyTraded={aggregates.energySold}
+        energyPurchased={aggregates.energyPurchased}
+        consumerDemandKwh={aggregates.consumerDemandKwh}
+        totalSpent={aggregates.energyPurchased ? aggregates.energyPurchased * pricingRec.recommendedPrice : 10.08}
       />
 
       {/* 4. REAL-TIME ENERGY FLOW PIPELINE */}
@@ -137,10 +172,11 @@ export default function DashboardPage() {
       {/* 5 & 6. PRODUCTION CHART & AI PRICE ENGINE (2-COLUMN GRID) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         <div className="lg:col-span-2 flex flex-col">
-          <EnergyProductionChart historyData={historyData} />
+          <EnergyProductionChart role={currentUser.role} historyData={historyData} />
         </div>
         <div className="flex flex-col">
           <AIPriceEngine
+            role={currentUser.role}
             recommendation={pricingRec}
             onRefresh={handleRefreshPricing}
             loading={loadingPricing}
@@ -154,8 +190,9 @@ export default function DashboardPage() {
           <HardwareHealth />
         </div>
         <div className="lg:col-span-2 space-y-6 flex flex-col justify-between">
-          <RecentTrades trades={recentTrades} />
+          <RecentTrades role={currentUser.role} trades={recentTrades} />
           <TradingSummary
+            role={currentUser.role}
             trades={recentTrades}
             aggregates={aggregates}
             currentPrice={pricingRec.recommendedPrice}
@@ -164,9 +201,12 @@ export default function DashboardPage() {
       </div>
 
       {/* 10. SECONDARY HARDWARE SENSOR DETAILS (SMART METER) */}
-      <SmartMeter />
+      <SmartMeter
+        role={currentUser.role}
+        energyPurchased={aggregates.energyPurchased}
+      />
 
-      {/* MODAL: CREATE ENERGY OFFER */}
+      {/* MODAL: CREATE ENERGY OFFER (FOR PRODUCER) */}
       <CreateOfferModal
         isOpen={isOfferModalOpen}
         onClose={() => setIsOfferModalOpen(false)}
@@ -174,6 +214,22 @@ export default function DashboardPage() {
           fetchDashboardData();
         }}
       />
+
+      {/* MODAL: BUY CLEAN ENERGY (FOR HOUSE B CONSUMER) */}
+      {selectedOffer && (
+        <BuyEnergyModal
+          key={selectedOffer.id || 'clean-energy-buy-modal'}
+          offer={selectedOffer}
+          isOpen={isBuyModalOpen}
+          onClose={() => {
+            setIsBuyModalOpen(false);
+            setSelectedOffer(null);
+          }}
+          onSuccess={() => {
+            fetchDashboardData();
+          }}
+        />
+      )}
 
     </div>
   );

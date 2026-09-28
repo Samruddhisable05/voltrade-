@@ -4,6 +4,7 @@ import React from 'react';
 import { Sparkles, TrendingDown, TrendingUp, Info, RefreshCw } from 'lucide-react';
 
 interface AIPriceEngineProps {
+  role?: string;
   recommendation: {
     basePrice: number;
     recommendedPrice: number;
@@ -18,17 +19,22 @@ interface AIPriceEngineProps {
 }
 
 export default function AIPriceEngine({
+  role = 'PRODUCER',
   recommendation,
   onRefresh,
   loading = false,
 }: AIPriceEngineProps) {
+  const isConsumer = role === 'CONSUMER';
+
   const rec = recommendation || {
     basePrice: 10.0,
     recommendedPrice: 8.42,
     supplyLevel: 'HIGH' as const,
     demandLevel: 'MEDIUM' as const,
     priceChange: -1.58,
-    reason: 'High solar generation + moderate local microgrid demand drives green discount.',
+    reason: isConsumer 
+      ? 'High solar generation at House A offers a discounted green buying tariff for your home.'
+      : 'High solar generation + moderate local microgrid demand drives green discount.',
     calculatedAt: new Date().toISOString(),
   };
 
@@ -49,15 +55,17 @@ export default function AIPriceEngine({
             </div>
             <div>
               <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                AI ENERGY PRICE
+                {isConsumer ? 'AI BUYING TARIFF' : 'AI ENERGY PRICE'}
               </h2>
-              <p className="text-[10px] text-slate-400">P2P Tariff Optimization Model</p>
+              <p className="text-[10px] text-slate-400">
+                {isConsumer ? 'Dynamic P2P Rate vs Utility Grid' : 'P2P Tariff Optimization Model'}
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
-              DYNAMIC PRICE
+              {isConsumer ? 'SPOT BUY TARIFF' : 'DYNAMIC PRICE'}
             </span>
             {onRefresh && (
               <button
@@ -76,7 +84,7 @@ export default function AIPriceEngine({
         <div className="mt-4 p-4 rounded-xl bg-slate-950/80 border border-purple-500/20 flex items-center justify-between">
           <div>
             <span className="text-[10px] uppercase font-bold text-purple-400/80 tracking-wider">
-              Recommended Tariff
+              {isConsumer ? 'Optimal Buying Tariff' : 'Recommended Tariff'}
             </span>
             <div className="text-3xl font-black text-white font-mono mt-0.5 flex items-baseline gap-1">
               ₹{rec.recommendedPrice.toFixed(2)}
@@ -95,7 +103,9 @@ export default function AIPriceEngine({
               {isDiscount ? <TrendingDown className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5" />}
               <span>{rec.priceChange <= 0 ? '' : '+'}{rec.priceChange.toFixed(2)}</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1 font-mono">Base: ₹{rec.basePrice.toFixed(2)}</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-mono">
+              {isConsumer ? 'Grid Baseline: ₹10.80' : `Base: ₹${rec.basePrice.toFixed(2)}`}
+            </p>
           </div>
         </div>
 
@@ -104,7 +114,7 @@ export default function AIPriceEngine({
           {/* Supply Bar */}
           <div>
             <div className="flex justify-between text-[11px] font-semibold text-slate-300 mb-1">
-              <span>Local Renewable Supply</span>
+              <span>{isConsumer ? 'Local Solar Supply (House A)' : 'Local Renewable Supply'}</span>
               <span className="text-emerald-400 font-mono font-bold">{rec.supplyLevel} ({supplyPercent}%)</span>
             </div>
             <div className="w-full h-2 rounded-full bg-slate-950 border border-slate-800 overflow-hidden">
@@ -118,7 +128,7 @@ export default function AIPriceEngine({
           {/* Demand Bar */}
           <div>
             <div className="flex justify-between text-[11px] font-semibold text-slate-300 mb-1">
-              <span>Consumer Grid Demand</span>
+              <span>{isConsumer ? 'Household Demand (House B)' : 'Consumer Grid Demand'}</span>
               <span className="text-amber-400 font-mono font-bold">{rec.demandLevel} ({demandPercent}%)</span>
             </div>
             <div className="w-full h-2 rounded-full bg-slate-950 border border-slate-800 overflow-hidden">

@@ -5,15 +5,19 @@ import Link from 'next/link';
 import { Layers, ArrowRight, ExternalLink } from 'lucide-react';
 
 interface RecentTradesProps {
+  role?: string;
   trades: any[];
 }
 
-export default function RecentTrades({ trades }: RecentTradesProps) {
+export default function RecentTrades({ role = 'PRODUCER', trades }: RecentTradesProps) {
+  const isConsumer = role === 'CONSUMER';
+
   // If no trades, provide clean default structure so UI is always functional
   const displayTrades = trades.length > 0 ? trades.slice(0, 5) : [
     {
       id: 'demo-tr-1',
       buyerName: 'House B',
+      sellerName: 'House A (Solar)',
       energyAmount: 1.20,
       pricePerKwh: 8.40,
       totalAmount: 10.08,
@@ -21,7 +25,8 @@ export default function RecentTrades({ trades }: RecentTradesProps) {
     },
     {
       id: 'demo-tr-2',
-      buyerName: 'House C',
+      buyerName: 'House B',
+      sellerName: 'House A (Solar)',
       energyAmount: 0.80,
       pricePerKwh: 8.25,
       totalAmount: 6.60,
@@ -29,7 +34,8 @@ export default function RecentTrades({ trades }: RecentTradesProps) {
     },
     {
       id: 'demo-tr-3',
-      buyerName: 'House D',
+      buyerName: 'House B',
+      sellerName: 'House A (Solar)',
       energyAmount: 0.50,
       pricePerKwh: 8.55,
       totalAmount: 4.28,
@@ -42,14 +48,20 @@ export default function RecentTrades({ trades }: RecentTradesProps) {
       <div>
         <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <div className={`p-2 rounded-xl border ${
+              isConsumer 
+                ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' 
+                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            }`}>
               <Layers className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-xs font-bold text-white uppercase tracking-wider">
-                RECENT P2P TRADES
+                {isConsumer ? 'CLEAN ENERGY PURCHASES' : 'RECENT P2P TRADES'}
               </h2>
-              <p className="text-[10px] text-slate-400">Direct Contract Settlements</p>
+              <p className="text-[10px] text-slate-400">
+                {isConsumer ? 'Direct Settlements from House A' : 'Direct Contract Settlements'}
+              </p>
             </div>
           </div>
 
@@ -67,7 +79,7 @@ export default function RecentTrades({ trades }: RecentTradesProps) {
           <table className="w-full text-left text-xs">
             <thead className="text-[10px] text-slate-500 uppercase font-bold tracking-wider border-b border-slate-800/80">
               <tr>
-                <th className="py-2.5 px-3">Buyer</th>
+                <th className="py-2.5 px-3">{isConsumer ? 'Seller (Source)' : 'Buyer'}</th>
                 <th className="py-2.5 px-3">Energy</th>
                 <th className="py-2.5 px-3">Price</th>
                 <th className="py-2.5 px-3 text-right">Status</th>
@@ -80,6 +92,10 @@ export default function RecentTrades({ trades }: RecentTradesProps) {
                   trade.status === 'Completed' ||
                   trade.status === 'ENERGY_DELIVERED';
 
+                const counterParty = isConsumer
+                  ? (trade.sellerName || trade.seller?.name || 'House A (Solar)')
+                  : (trade.buyerName || trade.buyer?.name || 'House B');
+
                 return (
                   <tr key={trade.id} className="hover:bg-slate-850/50 transition">
                     <td className="py-2.5 px-3 font-semibold text-slate-200">
@@ -87,7 +103,7 @@ export default function RecentTrades({ trades }: RecentTradesProps) {
                         href={`/trades/${trade.id}`}
                         className="hover:text-emerald-400 transition"
                       >
-                        {trade.buyerName || 'House B'}
+                        {counterParty}
                       </Link>
                     </td>
                     <td className="py-2.5 px-3 font-mono text-emerald-400">
@@ -104,7 +120,7 @@ export default function RecentTrades({ trades }: RecentTradesProps) {
                             : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                         }`}
                       >
-                        {trade.status}
+                        {isCompleted && isConsumer ? 'Delivered' : trade.status}
                       </span>
                     </td>
                   </tr>

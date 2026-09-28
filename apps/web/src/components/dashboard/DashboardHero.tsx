@@ -7,9 +7,10 @@ import { PlusCircle, ShoppingBag, Zap, ShieldCheck } from 'lucide-react';
 
 interface DashboardHeroProps {
   onOpenOfferModal: () => void;
+  onOpenBuyModal?: () => void;
 }
 
-export default function DashboardHero({ onOpenOfferModal }: DashboardHeroProps) {
+export default function DashboardHero({ onOpenOfferModal, onOpenBuyModal }: DashboardHeroProps) {
   const { currentUser, hardwareStatus } = useApp();
 
   // Dynamic greeting based on local time
@@ -29,8 +30,12 @@ export default function DashboardHero({ onOpenOfferModal }: DashboardHeroProps) 
         {/* Left: Greeting & Status */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              {currentUser.role}
+            <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${
+              isProducer 
+                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' 
+                : 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20'
+            }`}>
+              {isProducer ? 'SOLAR PRODUCER (HOUSE A)' : 'GREEN CONSUMER (HOUSE B)'}
             </span>
 
             {/* System Status Pill */}
@@ -43,9 +48,21 @@ export default function DashboardHero({ onOpenOfferModal }: DashboardHeroProps) 
                 }`}
               />
               <span className={hardwareStatus.isOnline ? 'text-emerald-400' : 'text-rose-400'}>
-                {hardwareStatus.isOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}
+                {hardwareStatus.isOnline ? 'MICROGRID ONLINE' : 'SYSTEM OFFLINE'}
               </span>
             </span>
+
+            {/* Hardware Relay State Pill for House B */}
+            {!isProducer && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                hardwareStatus.isRelayActive
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
+                  : 'bg-slate-950 text-slate-400 border-slate-800'
+              }`}>
+                <Zap className="w-3 h-3" />
+                {hardwareStatus.isRelayActive ? 'LOAD LED: ACTIVE' : 'LOAD LED: STANDBY'}
+              </span>
+            )}
           </div>
 
           <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
@@ -55,19 +72,27 @@ export default function DashboardHero({ onOpenOfferModal }: DashboardHeroProps) 
           <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
             {isProducer
               ? 'Your solar microgrid is currently generating renewable energy and connected to the P2P order book.'
-              : 'Browse real-time renewable surplus from local producers with instant smart contract settlement.'}
+              : 'Connected to local microgrid. Purchase certified solar power from House A with instant blockchain settlement and automatic load relay activation.'}
           </p>
         </div>
 
         {/* Right: Functional Action Buttons */}
         <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0 pt-2 md:pt-0">
-          {isProducer && (
+          {isProducer ? (
             <button
               onClick={onOpenOfferModal}
               className="flex-1 md:flex-none py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-1.5 active:scale-98"
             >
               <PlusCircle className="w-4 h-4" />
               Sell Energy
+            </button>
+          ) : (
+            <button
+              onClick={onOpenBuyModal}
+              className="flex-1 md:flex-none py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-1.5 active:scale-98"
+            >
+              <Zap className="w-4 h-4 fill-current" />
+              + Buy Clean Energy
             </button>
           )}
 

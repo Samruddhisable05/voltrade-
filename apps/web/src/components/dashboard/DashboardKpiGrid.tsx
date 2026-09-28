@@ -1,26 +1,36 @@
 'use client';
 
 import React from 'react';
-import { Sun, BatteryCharging, Zap, ArrowRightLeft, Sparkles } from 'lucide-react';
+import { Sun, BatteryCharging, Zap, ArrowRightLeft, Sparkles, Activity, IndianRupee, Leaf } from 'lucide-react';
 
 interface DashboardKpiGridProps {
+  role?: string;
   energyGenerated: number;
   energyAvailable: number;
   currentPrice: number;
   energyTraded: number;
+  energyPurchased?: number;
+  consumerDemandKwh?: number;
+  totalSpent?: number;
 }
 
 export default function DashboardKpiGrid({
+  role = 'PRODUCER',
   energyGenerated,
   energyAvailable,
   currentPrice,
   energyTraded,
+  energyPurchased = 1.20,
+  consumerDemandKwh = 4.20,
+  totalSpent = 12.48,
 }: DashboardKpiGridProps) {
-  const kpis = [
+  const isConsumer = role === 'CONSUMER';
+
+  const producerKpis = [
     {
       title: 'ENERGY GENERATED',
       value: `${energyGenerated.toFixed(2)} kWh`,
-      subtitle: 'Today',
+      subtitle: 'Solar generation today',
       icon: Sun,
       iconColor: 'text-emerald-400',
       iconBg: 'bg-emerald-500/10 border-emerald-500/20',
@@ -29,7 +39,7 @@ export default function DashboardKpiGrid({
     {
       title: 'AVAILABLE TO SELL',
       value: `${energyAvailable.toFixed(2)} kWh`,
-      subtitle: 'Ready for P2P trading',
+      subtitle: 'Surplus ready for P2P trading',
       icon: BatteryCharging,
       iconColor: 'text-cyan-400',
       iconBg: 'bg-cyan-500/10 border-cyan-500/20',
@@ -46,15 +56,57 @@ export default function DashboardKpiGrid({
       accentColor: 'border-l-purple-500',
     },
     {
-      title: 'ENERGY TRADED',
+      title: 'ENERGY SOLD / TRADED',
       value: `${energyTraded.toFixed(2)} kWh`,
-      subtitle: 'P2P trading activity',
+      subtitle: 'P2P export activity',
       icon: ArrowRightLeft,
       iconColor: 'text-teal-400',
       iconBg: 'bg-teal-500/10 border-teal-500/20',
       accentColor: 'border-l-teal-500',
     },
   ];
+
+  const consumerKpis = [
+    {
+      title: 'CLEAN ENERGY PURCHASED',
+      value: `${energyPurchased.toFixed(2)} kWh`,
+      subtitle: 'Solar electricity bought from House A',
+      icon: BatteryCharging,
+      iconColor: 'text-emerald-400',
+      iconBg: 'bg-emerald-500/10 border-emerald-500/20',
+      accentColor: 'border-l-emerald-500',
+    },
+    {
+      title: 'HOUSEHOLD GRID DEMAND',
+      value: `${consumerDemandKwh.toFixed(2)} kWh`,
+      subtitle: 'Consumer home appliance load',
+      icon: Activity,
+      iconColor: 'text-cyan-400',
+      iconBg: 'bg-cyan-500/10 border-cyan-500/20',
+      accentColor: 'border-l-cyan-500',
+    },
+    {
+      title: 'CURRENT BUYING TARIFF',
+      value: `₹${currentPrice.toFixed(2)}`,
+      unit: '/ kWh',
+      subtitle: 'AI Dynamic P2P Rate',
+      icon: Sparkles,
+      iconColor: 'text-purple-400',
+      iconBg: 'bg-purple-500/10 border-purple-500/20',
+      accentColor: 'border-l-purple-500',
+    },
+    {
+      title: 'TOTAL PURCHASE SETTLEMENT',
+      value: `₹${totalSpent.toFixed(2)}`,
+      subtitle: 'Virtual escrow debited for power',
+      icon: IndianRupee,
+      iconColor: 'text-teal-400',
+      iconBg: 'bg-teal-500/10 border-teal-500/20',
+      accentColor: 'border-l-teal-500',
+    },
+  ];
+
+  const kpis = isConsumer ? consumerKpis : producerKpis;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

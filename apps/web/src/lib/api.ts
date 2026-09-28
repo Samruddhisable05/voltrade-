@@ -43,6 +43,9 @@ export const sendDeviceCommand = (deviceId: string, command: string, duration: n
 export const getMarketplace = () =>
   fetchJson<{ offers: any[]; pricingRecommendation: any }>('/marketplace');
 
+export const getEnergyOffers = (status?: string) =>
+  fetchJson<{ offers: any[] }>(`/energy/offers${status ? `?status=${status}` : ''}`);
+
 export const createEnergyOffer = (userId: string, energyAmount: number, pricePerKwh: number) =>
   fetchJson<{ success: boolean; offer: any }>('/energy/offers', {
     method: 'POST',

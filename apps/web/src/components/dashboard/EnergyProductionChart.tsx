@@ -21,10 +21,12 @@ interface HistoryItem {
 }
 
 interface EnergyProductionChartProps {
+  role?: string;
   historyData: HistoryItem[];
 }
 
-export default function EnergyProductionChart({ historyData }: EnergyProductionChartProps) {
+export default function EnergyProductionChart({ role = 'PRODUCER', historyData }: EnergyProductionChartProps) {
+  const isConsumer = role === 'CONSUMER';
   const [filter, setFilter] = useState<'24H' | '7D' | '30D'>('24H');
 
   // Generate appropriate view based on filter
@@ -41,7 +43,7 @@ export default function EnergyProductionChart({ historyData }: EnergyProductionC
 
     if (filter === '7D') {
       const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'];
-      const baseValues = [4.2, 5.1, 4.8, 6.3, 5.9, 6.8, 5.7];
+      const baseValues = isConsumer ? [3.8, 4.4, 4.1, 5.2, 4.8, 5.5, 4.2] : [4.2, 5.1, 4.8, 6.3, 5.9, 6.8, 5.7];
       return days.map((day, i) => ({
         label: day,
         kwh: baseValues[i],
@@ -51,24 +53,26 @@ export default function EnergyProductionChart({ historyData }: EnergyProductionC
 
     // 30D
     const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-    const baseWeeks = [32.4, 38.6, 41.2, 35.8];
+    const baseWeeks = isConsumer ? [28.2, 31.5, 34.0, 29.8] : [32.4, 38.6, 41.2, 35.8];
     return weeks.map((w, i) => ({
       label: w,
       kwh: baseWeeks[i],
       power: Number((baseWeeks[i] * 40).toFixed(1)),
     }));
-  }, [historyData, filter]);
+  }, [historyData, filter, isConsumer]);
 
   return (
     <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl backdrop-blur-sm">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 gap-3 mb-4">
         <div>
           <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Activity className="w-4 h-4 text-emerald-400" />
-            ENERGY PRODUCTION
+            <Activity className={`w-4 h-4 ${isConsumer ? 'text-cyan-400' : 'text-emerald-400'}`} />
+            {isConsumer ? 'ENERGY CONSUMPTION & SOLAR IMPORT' : 'ENERGY PRODUCTION'}
           </h2>
           <p className="text-[11px] text-slate-400">
-            Cumulative renewable generation metrics over time
+            {isConsumer 
+              ? 'Household power demand met by microgrid solar imports from House A'
+              : 'Cumulative renewable generation metrics over time'}
           </p>
         </div>
 
@@ -80,7 +84,7 @@ export default function EnergyProductionChart({ historyData }: EnergyProductionC
               onClick={() => setFilter(t)}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                 filter === t
-                  ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                  ? isConsumer ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'bg-emerald-500 text-slate-950 shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -97,8 +101,8 @@ export default function EnergyProductionChart({ historyData }: EnergyProductionC
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
               <defs>
                 <linearGradient id="energyProductionGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.0} />
+                  <stop offset="5%" stopColor={isConsumer ? '#06b6d4' : '#10b981'} stopOpacity={0.35} />
+                  <stop offset="95%" stopColor={isConsumer ? '#3b82f6' : '#06b6d4'} stopOpacity={0.0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -111,12 +115,12 @@ export default function EnergyProductionChart({ historyData }: EnergyProductionC
                   borderRadius: '0.75rem',
                   fontSize: '12px',
                 }}
-                formatter={(val: any) => [`${val} kWh`, 'Generation']}
+                formatter={(val: any) => [`${val} kWh`, isConsumer ? 'Solar Imported' : 'Generation']}
               />
               <Area
                 type="monotone"
                 dataKey="kwh"
-                stroke="#10b981"
+                stroke={isConsumer ? '#06b6d4' : '#10b981'}
                 strokeWidth={2.5}
                 fillOpacity={1}
                 fill="url(#energyProductionGrad)"
@@ -132,9 +136,9 @@ export default function EnergyProductionChart({ historyData }: EnergyProductionC
       </div>
 
       <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-        <span className="flex items-center gap-1.5 text-emerald-400">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          Active Sampling: Solar Microgrid Array
+        <span className={`flex items-center gap-1.5 ${isConsumer ? 'text-cyan-400' : 'text-emerald-400'}`}>
+          <span className={`w-2 h-2 rounded-full ${isConsumer ? 'bg-cyan-400' : 'bg-emerald-400'}`} />
+          {isConsumer ? 'Active Sampling: House B Consumer Load Smart Meter' : 'Active Sampling: Solar Microgrid Array'}
         </span>
         <span className="font-mono text-slate-500">Filter: {filter} Window</span>
       </div>
