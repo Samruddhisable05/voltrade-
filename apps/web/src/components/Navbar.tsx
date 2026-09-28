@@ -21,6 +21,12 @@ import {
 
 export default function Navbar() {
   const pathname = usePathname();
+
+  // On the dashboard, the dedicated DashboardHeader with hamburger drawer controls navigation
+  if (pathname === '/dashboard') {
+    return null;
+  }
+
   const { currentUser, availableUsers, switchUser, hardwareStatus, notifications, unreadNotifsCount } = useApp();
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
