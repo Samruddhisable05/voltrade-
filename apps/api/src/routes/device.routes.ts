@@ -56,7 +56,8 @@ router.get('/', async (_req: Request, res: Response) => {
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const device = await deviceService.getDevice(req.params.id);
+    const id = req.params.id as string;
+    const device = await deviceService.getDevice(id);
     if (!device) {
       return res.status(404).json({ error: 'Device not found' });
     }
@@ -72,7 +73,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.post('/:id/command', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { command, duration } = req.body;
 
     if (!command) {
@@ -96,7 +97,7 @@ router.post('/:id/command', async (req: Request, res: Response) => {
  */
 router.get('/:deviceId/commands/pending', async (req: Request, res: Response) => {
   try {
-    const { deviceId } = req.params;
+    const deviceId = req.params.deviceId as string;
     const pendingCmd = await deviceService.getNextPendingCommand(deviceId);
     if (!pendingCmd) {
       return res.status(204).send(); // No content
@@ -113,7 +114,7 @@ router.get('/:deviceId/commands/pending', async (req: Request, res: Response) =>
  */
 router.post('/:deviceId/commands/:cmdId/ack', async (req: Request, res: Response) => {
   try {
-    const { cmdId } = req.params;
+    const cmdId = req.params.cmdId as string;
     const { status } = req.body;
     await deviceService.acknowledgeCommand(cmdId, status || 'EXECUTED');
     return res.json({ success: true, acknowledgedId: cmdId });

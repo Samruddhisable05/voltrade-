@@ -80,7 +80,7 @@ router.post('/offers', async (req: Request, res: Response) => {
  */
 router.patch('/offers/:id', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status, remainingEnergy, pricePerKwh } = req.body;
 
     const updated = await energyService.updateOffer(id, {

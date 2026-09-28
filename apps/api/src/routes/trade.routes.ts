@@ -127,7 +127,8 @@ router.get('/trades', async (req: Request, res: Response) => {
  */
 router.get('/trades/:id', async (req: Request, res: Response) => {
   try {
-    const trade = await tradeService.getTradeById(req.params.id);
+    const id = req.params.id as string;
+    const trade = await tradeService.getTradeById(id);
     if (!trade) {
       return res.status(404).json({ error: 'Trade not found' });
     }

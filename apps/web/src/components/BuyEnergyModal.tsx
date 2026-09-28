@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../lib/context';
 import { executeBuyTrade } from '../lib/api';
 import { 
@@ -24,19 +24,35 @@ interface BuyEnergyModalProps {
 
 export default function BuyEnergyModal({ offer, isOpen, onClose, onSuccess }: BuyEnergyModalProps) {
   const { currentUser, triggerRelayVisual, refreshData } = useApp();
-  const [requestedKwh, setRequestedKwh] = useState<number>(
-    offer ? Math.min(1.0, offer.remainingEnergy) : 1.0
-  );
+  const [requestedKwh, setRequestedKwh] = useState<number>(1.0);
   const [step, setStep] = useState<'INPUT' | 'PROCESSING' | 'SUCCESS' | 'ERROR'>('INPUT');
   const [progressMsg, setProgressMsg] = useState<string>('');
   const [completedTrade, setCompletedTrade] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Reset state to INPUT every time the modal opens or offer changes
+  useEffect(() => {
+    if (isOpen) {
+      setStep('INPUT');
+      setErrorMsg(null);
+      setCompletedTrade(null);
+      const remaining = offer?.remainingEnergy ? Number(offer.remainingEnergy) : 1.0;
+      setRequestedKwh(Math.min(1.0, remaining > 0 ? remaining : 1.0));
+    }
+  }, [isOpen, offer]);
+
   if (!isOpen || !offer) return null;
 
-  const pricePerKwh = offer.pricePerKwh;
+  const pricePerKwh = offer.pricePerKwh || 8.42;
   const totalAmount = Number((requestedKwh * pricePerKwh).toFixed(2));
   const hasSufficientFunds = currentUser.walletBalance >= totalAmount;
+
+  const handleClose = () => {
+    setStep('INPUT');
+    setErrorMsg(null);
+    setCompletedTrade(null);
+    onClose();
+  };
 
   const handleConfirmPurchase = async () => {
     if (!hasSufficientFunds) {
@@ -56,9 +72,10 @@ export default function BuyEnergyModal({ offer, isOpen, onClose, onSuccess }: Bu
 
       setProgressMsg('3. Dispatching ACTIVATE_LOAD command to ESP32 hardware relay...');
       
+      const isDummyId = !offer?.id || offer.id.startsWith('demo') || offer.id === 'offer-solar-live';
       const result = await executeBuyTrade({
         buyerId: currentUser.id,
-        offerId: offer.id,
+        offerId: isDummyId ? undefined : offer.id,
         energyAmount: requestedKwh,
       });
 
@@ -85,7 +102,7 @@ export default function BuyEnergyModal({ offer, isOpen, onClose, onSuccess }: Bu
         
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg transition"
         >
           <X className="w-5 h-5" />
@@ -235,7 +252,7 @@ export default function BuyEnergyModal({ offer, isOpen, onClose, onSuccess }: Bu
 
             <div className="flex gap-2">
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition"
               >
                 Close & Return
