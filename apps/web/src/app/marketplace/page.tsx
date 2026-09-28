@@ -16,28 +16,113 @@ import {
   ShieldCheck,
   TrendingDown,
   RefreshCw,
-  Search
+  Search,
+  Wind,
+  Waves
 } from 'lucide-react';
+
+interface EnergyOfferDisplay {
+  id: string;
+  userId: string;
+  producerName: string;
+  renewableSource: string;
+  energyAmount: number;
+  remainingEnergy: number;
+  pricePerKwh: number;
+  status: string;
+  createdAt: string;
+  isDemo?: boolean;
+}
+
+const FRONTEND_DEMO_OFFERS: EnergyOfferDisplay[] = [
+  {
+    id: 'demo-wind-breeze-1',
+    userId: 'user-demo-wind',
+    producerName: 'GreenBreeze Farm B',
+    renewableSource: 'Micro Wind Turbine',
+    energyAmount: 6.0,
+    remainingEnergy: 4.5,
+    pricePerKwh: 8.75,
+    status: 'AVAILABLE',
+    createdAt: new Date().toISOString(),
+    isDemo: true,
+  },
+  {
+    id: 'demo-solar-sunshare-2',
+    userId: 'user-demo-community',
+    producerName: 'SunShare Community Microgrid',
+    renewableSource: 'Bifacial Solar Array',
+    energyAmount: 5.0,
+    remainingEnergy: 3.8,
+    pricePerKwh: 9.20,
+    status: 'AVAILABLE',
+    createdAt: new Date().toISOString(),
+    isDemo: true,
+  },
+  {
+    id: 'demo-hydro-ecostream-3',
+    userId: 'user-demo-hydro',
+    producerName: 'EcoStream Hydro Hub',
+    renewableSource: 'Micro-Hydro Turbine',
+    energyAmount: 3.5,
+    remainingEnergy: 2.4,
+    pricePerKwh: 8.40,
+    status: 'AVAILABLE',
+    createdAt: new Date().toISOString(),
+    isDemo: true,
+  },
+  {
+    id: 'demo-solar-apex-4',
+    userId: 'user-demo-apex',
+    producerName: 'Apex Clean Energy Park',
+    renewableSource: 'Commercial Rooftop Solar',
+    energyAmount: 8.0,
+    remainingEnergy: 6.2,
+    pricePerKwh: 10.10,
+    status: 'AVAILABLE',
+    createdAt: new Date().toISOString(),
+    isDemo: true,
+  },
+];
 
 export default function MarketplacePage() {
   const { currentUser } = useApp();
-  const [offers, setOffers] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any[]>(FRONTEND_DEMO_OFFERS);
   const [pricingRec, setPricingRec] = useState<any>(null);
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const demoOffersRef = React.useRef<EnergyOfferDisplay[]>(FRONTEND_DEMO_OFFERS);
+
   const fetchMarketplace = async () => {
     setLoading(true);
     try {
       const data = await getMarketplace();
-      if (data) {
-        setOffers(data.offers || []);
-        setPricingRec(data.pricingRecommendation || null);
+      const liveOffers = (data?.offers || []).map((o: any) => ({
+        ...o,
+        renewableSource: o.renewableSource || 'Rooftop Solar PV',
+      }));
+
+      // Filter demo offers that don't collide with live offers
+      const activeDemos = demoOffersRef.current.filter(
+        (demo) => !liveOffers.some((live: any) => live.id === demo.id)
+      );
+
+      // Merge live and demo offers, sorted by best tariff
+      const mergedOffers = [...liveOffers, ...activeDemos].sort(
+        (a: any, b: any) => a.pricePerKwh - b.pricePerKwh
+      );
+
+      setOffers(mergedOffers);
+      if (data?.pricingRecommendation) {
+        setPricingRec(data.pricingRecommendation);
       }
     } catch (err) {
       console.error('Marketplace fetch error:', err);
+      // Fallback: display available demo offers
+      setOffers(demoOffersRef.current);
     } finally {
       setLoading(false);
     }
@@ -54,6 +139,49 @@ export default function MarketplacePage() {
     setIsBuyModalOpen(true);
   };
 
+  const handlePurchaseSuccess = (purchasedKwh?: number) => {
+    if (selectedOffer?.isDemo && purchasedKwh) {
+      demoOffersRef.current = demoOffersRef.current.map((off) => {
+        if (off.id === selectedOffer.id) {
+          const updatedRemaining = Math.max(0, Number((off.remainingEnergy - purchasedKwh).toFixed(2)));
+          return {
+            ...off,
+            remainingEnergy: updatedRemaining,
+            status: updatedRemaining <= 0.05 ? 'SOLD' : 'AVAILABLE',
+          };
+        }
+        return off;
+      });
+    }
+    fetchMarketplace();
+  };
+
+  const getSourceBadge = (source?: string) => {
+    const s = (source || '').toLowerCase();
+    if (s.includes('wind')) {
+      return (
+        <span className="text-[10px] uppercase font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 flex items-center gap-1">
+          <Wind className="w-3 h-3 text-cyan-400" />
+          {source}
+        </span>
+      );
+    }
+    if (s.includes('hydro')) {
+      return (
+        <span className="text-[10px] uppercase font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
+          <Waves className="w-3 h-3 text-blue-400" />
+          {source}
+        </span>
+      );
+    }
+    return (
+      <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+        <Sun className="w-3 h-3 text-amber-400" />
+        {source || 'Rooftop Solar PV'}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       
@@ -67,7 +195,7 @@ export default function MarketplacePage() {
             Renewable Energy Marketplace
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Purchase solar electricity directly from local producers with instant cryptographic settlement.
+            Purchase clean electricity directly from certified microgrid producers with instant cryptographic settlement.
           </p>
         </div>
 
@@ -124,8 +252,8 @@ export default function MarketplacePage() {
       <div>
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Sun className="w-4 h-4 text-emerald-400" />
-            Available Solar Energy Offers ({offers.length})
+            <Zap className="w-4 h-4 text-emerald-400" />
+            Available Renewable Energy Offers ({offers.length})
           </h2>
           <span className="text-xs text-slate-400">Sorted by best price per kWh</span>
         </div>
@@ -137,7 +265,7 @@ export default function MarketplacePage() {
             </div>
             <h3 className="text-sm font-bold text-slate-300">No active offers right now</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              Producers are currently accumulating solar energy. Check back shortly or create a listing.
+              Producers are currently accumulating clean energy. Check back shortly or create a listing.
             </p>
           </div>
         ) : (
@@ -151,27 +279,36 @@ export default function MarketplacePage() {
                   className="rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/40 p-5 shadow-xl transition flex flex-col justify-between group relative overflow-hidden"
                 >
                   <div>
-                    {/* Header */}
-                    <div className="flex justify-between items-start pb-3 border-b border-slate-800">
+                    {/* Header: Renewable Source + Availability Status */}
+                    <div className="flex justify-between items-start pb-3 border-b border-slate-800 gap-2">
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-emerald-400/90 tracking-wider">
-                          Solar Producer
-                        </span>
-                        <h3 className="text-sm font-bold text-white mt-0.5 group-hover:text-emerald-400 transition">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {getSourceBadge(offer.renewableSource)}
+                          {offer.isDemo && (
+                            <span className="text-[9px] uppercase font-semibold text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700">
+                              Demo
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-bold text-white mt-1.5 group-hover:text-emerald-400 transition">
                           {offer.producerName || 'House A (Solar)'}
                         </h3>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 border ${
+                        offer.status === 'AVAILABLE'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}>
                         {offer.status}
                       </span>
                     </div>
 
-                    {/* Stats */}
+                    {/* Stats: Available Energy & Price per kWh */}
                     <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
                       <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                        <span className="text-[10px] uppercase font-bold text-slate-500">Available</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-500">Available Energy</span>
                         <div className="text-lg font-black text-white font-mono mt-0.5">
-                          {offer.remainingEnergy.toFixed(2)}
+                          {Number(offer.remainingEnergy).toFixed(2)}
                           <span className="text-xs font-normal text-slate-400 ml-1">kWh</span>
                         </div>
                       </div>
@@ -179,7 +316,7 @@ export default function MarketplacePage() {
                       <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
                         <span className="text-[10px] uppercase font-bold text-slate-500">Tariff</span>
                         <div className="text-lg font-black text-emerald-400 font-mono mt-0.5">
-                          ₹{offer.pricePerKwh.toFixed(2)}
+                          ₹{Number(offer.pricePerKwh).toFixed(2)}
                           <span className="text-xs font-normal text-slate-400 ml-1">/kWh</span>
                         </div>
                       </div>
@@ -188,12 +325,12 @@ export default function MarketplacePage() {
                     <div className="mt-3 flex justify-between items-center text-xs px-1 text-slate-400">
                       <span>Estimated Total Pool:</span>
                       <span className="font-mono text-white font-bold">
-                        ₹{(offer.remainingEnergy * offer.pricePerKwh).toFixed(2)}
+                        ₹{(Number(offer.remainingEnergy) * Number(offer.pricePerKwh)).toFixed(2)}
                       </span>
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {/* Actions: BUY ENERGY Button */}
                   <div className="mt-5 pt-3 border-t border-slate-800">
                     {isOwner ? (
                       <div className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-400 text-xs text-center font-medium">
@@ -202,7 +339,8 @@ export default function MarketplacePage() {
                     ) : (
                       <button
                         onClick={() => handleBuyClick(offer)}
-                        className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-1.5 active:scale-98"
+                        disabled={offer.status !== 'AVAILABLE' || offer.remainingEnergy <= 0}
+                        className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                       >
                         <Zap className="w-4 h-4 fill-current" />
                         BUY ENERGY
@@ -224,8 +362,8 @@ export default function MarketplacePage() {
           setIsBuyModalOpen(false);
           setSelectedOffer(null);
         }}
-        onSuccess={() => {
-          fetchMarketplace();
+        onSuccess={(purchasedKwh) => {
+          handlePurchaseSuccess(purchasedKwh);
         }}
       />
 

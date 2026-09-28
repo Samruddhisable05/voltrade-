@@ -19,7 +19,7 @@ interface BuyEnergyModalProps {
   offer: any;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (purchasedKwh?: number) => void;
 }
 
 export default function BuyEnergyModal({ offer, isOpen, onClose, onSuccess }: BuyEnergyModalProps) {
@@ -72,12 +72,29 @@ export default function BuyEnergyModal({ offer, isOpen, onClose, onSuccess }: Bu
 
       setProgressMsg('3. Dispatching ACTIVATE_LOAD command to ESP32 hardware relay...');
       
-      const isDummyId = !offer?.id || offer.id.startsWith('demo') || offer.id === 'offer-solar-live';
-      const result = await executeBuyTrade({
-        buyerId: currentUser.id,
-        offerId: isDummyId ? undefined : offer.id,
-        energyAmount: requestedKwh,
-      });
+      let result: any;
+      if (offer.isDemo) {
+        result = {
+          trade: {
+            id: `trade-demo-${Date.now()}`,
+            buyerId: currentUser.id,
+            sellerId: offer.userId,
+            energyAmount: requestedKwh,
+            pricePerKwh: pricePerKwh,
+            totalAmount,
+            status: 'COMPLETED',
+            blockchainTxHash: '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+            createdAt: new Date().toISOString(),
+          },
+        };
+      } else {
+        const isDummyId = !offer?.id || offer.id.startsWith('demo') || offer.id === 'offer-solar-live';
+        result = await executeBuyTrade({
+          buyerId: currentUser.id,
+          offerId: isDummyId ? undefined : offer.id,
+          energyAmount: requestedKwh,
+        });
+      }
 
       // Trigger hardware feedback visualization
       triggerRelayVisual(5000);
@@ -88,7 +105,7 @@ export default function BuyEnergyModal({ offer, isOpen, onClose, onSuccess }: Bu
 
       await refreshData();
       setStep('SUCCESS');
-      onSuccess();
+      onSuccess(requestedKwh);
     } catch (err: any) {
       console.error('Purchase failed:', err);
       setErrorMsg(err.message || 'Trade execution failed');
@@ -124,8 +141,12 @@ export default function BuyEnergyModal({ offer, isOpen, onClose, onSuccess }: Bu
             {/* Offer Summary Card */}
             <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 mb-4 text-xs space-y-2">
               <div className="flex justify-between">
-                <span className="text-slate-400">Solar Producer:</span>
+                <span className="text-slate-400">Producer Name:</span>
                 <span className="font-semibold text-slate-200">{offer.producerName || 'House A (Producer)'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Renewable Source:</span>
+                <span className="font-semibold text-emerald-400">{offer.renewableSource || 'Rooftop Solar PV'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Available Surplus:</span>
