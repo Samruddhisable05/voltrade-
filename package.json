@@ -1,0 +1,21 @@
+{
+  "name": "volttrade-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace=@volttrade/api run dev",
+    "dev:web": "npm --workspace=web run dev",
+    "db:generate": "npm --workspace=@volttrade/database run generate",
+    "db:push": "npm --workspace=@volttrade/database run db:push",
+    "seed": "npm --workspace=@volttrade/database run seed",
+    "test:flow": "npm --workspace=@volttrade/api run test:flow"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

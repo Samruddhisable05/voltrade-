@@ -1,0 +1,137 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  role         String        @default("PRODUCER") // "PRODUCER", "CONSUMER", "ADMIN"
+  wallet       Wallet?
+  devices      Device[]
+  energyOffers EnergyOffer[]
+  boughtTrades Trade[]       @relation("BuyerTrades")
+  soldTrades   Trade[]       @relation("SellerTrades")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Device {
+  id          String          @id @default(cuid())
+  deviceId    String          @unique // e.g. "ESP32-HOUSE-A"
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String          @default("ESP32 Smart Meter")
+  status      String          @default("OFFLINE") // "ONLINE", "OFFLINE", "ERROR"
+  lastSeen    DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  telemetry   Telemetry[]
+  commands    DeviceCommand[]
+}
+
+model Telemetry {
+  id        String   @id @default(cuid())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+  voltage   Float    // Volts
+  current   Float    // Amperes
+  power     Float    // Watts (V * A)
+  energy    Float    // Cumulative kWh
+  timestamp DateTime @default(now())
+
+  @@index([deviceId, timestamp])
+}
+
+model DeviceCommand {
+  id         String    @id @default(cuid())
+  deviceId   String
+  device     Device    @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+  command    String    // "ACTIVATE_LOAD", "DEACTIVATE_LOAD", "STATUS_PING"
+  duration   Int?      @default(5000) // Relay active duration in ms
+  status     String    @default("PENDING") // "PENDING", "EXECUTED", "FAILED"
+  createdAt  DateTime  @default(now())
+  executedAt DateTime?
+}
+
+model EnergyOffer {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  energyAmount    Float    // Initial total kWh
+  remainingEnergy Float    // Available kWh left
+  pricePerKwh     Float    // ₹ / kWh
+  status          String   @default("AVAILABLE") // "AVAILABLE", "PARTIALLY_SOLD", "SOLD", "CANCELLED"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  trades          Trade[]
+}
+
+model Trade {
+  id               String                       @id @default(cuid())
+  buyerId          String
+  buyer            User                         @relation("BuyerTrades", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId         String
+  seller           User                         @relation("SellerTrades", fields: [sellerId], references: [id], onDelete: Cascade)
+  offerId          String?
+  offer            EnergyOffer?                 @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  energyAmount     Float                        // kWh
+  pricePerKwh      Float                        // ₹ / kWh
+  totalAmount      Float                        // ₹
+  status           String                       @default("REQUESTED") // "REQUESTED", "MATCHED", "PAYMENT_CONFIRMED", "BLOCKCHAIN_CONFIRMED", "ENERGY_DELIVERED", "COMPLETED", "FAILED"
+  blockchainTxHash String?
+  createdAt        DateTime                     @default(now())
+  completedAt      DateTime?
+  blockchainTx     BlockchainTransactionRecord?
+  walletTx         WalletTransaction[]
+}
+
+model Wallet {
+  id           String              @id @default(cuid())
+  userId       String              @unique
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance      Float               @default(100.0) // Virtual demo balance in ₹
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  walletId    String
+  wallet      Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  tradeId     String?
+  trade       Trade?   @relation(fields: [tradeId], references: [id], onDelete: SetNull)
+  type        String   // "CREDIT", "DEBIT", "TOPUP"
+  amount      Float
+  description String
+  createdAt   DateTime @default(now())
+}
+
+model BlockchainTransactionRecord {
+  id           String   @id @default(cuid())
+  txHash       String   @unique
+  tradeId      String   @unique
+  trade        Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  energyAmount Float
+  amount       Float
+  status       String   @default("CONFIRMED")
+  blockNumber  Int
+  gasUsed      Int?
+  timestamp    DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  title     String
+  message   String
+  type      String   @default("INFO") // "INFO", "SUCCESS", "WARNING", "ERROR"
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
